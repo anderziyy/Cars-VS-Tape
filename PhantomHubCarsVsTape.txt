@@ -2674,14 +2674,17 @@ local autoUnlockWorldGeneration = 0
 
 local UNLOCK_WORLD_DATA = {
     [1] = {
+        StopPoint = CFrame.new(-25.6354332, 4.99802494, -57.1411858, 0.999985158, -1.37171199e-07, -0.00545167318, 1.37248378e-07, 1, 1.37829126e-08, 0.00545167318, -1.45309409e-08, 0.999985158),
         CFrame = CFrame.new(25.0000114, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 2
     },
     [2] = {
+        StopPoint = CFrame.new(1961.30676, 3.99804115, -29.6291943, 1, 1.09778506e-11, 2.51739561e-06, -1.06324411e-11, 1, -1.37209e-07, -2.51739561e-06, 1.37209e-07, 1),
         CFrame = CFrame.new(2025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 3
     },
     [3] = {
+        StopPoint = CFrame.new(3971.84863, 3.99802446, -37.3948174, -0.0027537006, 9.58544177e-08, 0.999996185, 4.76764797e-08, 1, -9.57234931e-08, -0.999996185, 4.74127049e-08, -0.0027537006),
         CFrame = CFrame.new(4025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 4
     }
@@ -3010,6 +3013,112 @@ end
 
 createUnlockWorldSelectOption()
 
+local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generation)
+    local flySpeedValue = optionStates["Fly Speed"]
+    if type(flySpeedValue) == "function" then flySpeedValue = flySpeedValue() end
+    if not flySpeedValue then flySpeedValue = 32 end
+    
+    setOptionState("Fly", true)
+    setOptionState("Noclip", true)
+    
+    local stopPosition = stopCFrame.Position
+    local targetPosition = targetCFrame.Position
+    
+    while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
+        local selectedWorld = getUnlockWorldSelection()
+        if not selectedWorld then
+            setOptionState("Fly", false)
+            setOptionState("Noclip", false)
+            return false, "selection_cleared"
+        end
+        
+        local currentData = getUnlockWorldData(selectedWorld)
+        if not currentData or (currentData.CFrame ~= targetCFrame and currentData.StopPoint ~= stopCFrame) then
+            setOptionState("Fly", false)
+            setOptionState("Noclip", false)
+            return false, "selection_changed"
+        end
+        
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if not character or not humanoid or humanoid.Health <= 0 or not root then
+            task.wait(0.1)
+            continue
+        end
+        
+        local offset = stopPosition - root.Position
+        local distance = offset.Magnitude
+        
+        if distance <= 2 then
+            root.CFrame = stopCFrame
+            break
+        end
+        
+        local speed = math.clamp(distance * 2.5, 120, 350)
+        local step = math.min(distance, speed * 0.016)
+        local alpha = math.clamp(step / math.max(distance, 0.001), 0, 1)
+        
+        root.CFrame = root.CFrame:Lerp(stopCFrame, alpha)
+        task.wait()
+    end
+    
+    if not (autoUnlockWorldActive and generation == autoUnlockWorldGeneration) then
+        setOptionState("Fly", false)
+        setOptionState("Noclip", false)
+        return false, "disabled"
+    end
+    
+    task.wait(0.5)
+    
+    while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
+        local selectedWorld = getUnlockWorldSelection()
+        if not selectedWorld then
+            setOptionState("Fly", false)
+            setOptionState("Noclip", false)
+            return false, "selection_cleared"
+        end
+        
+        local currentData = getUnlockWorldData(selectedWorld)
+        if not currentData or currentData.CFrame ~= targetCFrame then
+            setOptionState("Fly", false)
+            setOptionState("Noclip", false)
+            return false, "selection_changed"
+        end
+        
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if not character or not humanoid or humanoid.Health <= 0 or not root then
+            task.wait(0.1)
+            continue
+        end
+        
+        local offset = targetPosition - root.Position
+        local distance = offset.Magnitude
+        
+        if distance <= 2 then
+            root.CFrame = targetCFrame
+            setOptionState("Fly", false)
+            setOptionState("Noclip", false)
+            return true, "arrived"
+        end
+        
+        local speed = math.clamp(distance * 2.5, 120, 350)
+        local step = math.min(distance, speed * 0.016)
+        local alpha = math.clamp(step / math.max(distance, 0.001), 0, 1)
+        
+        root.CFrame = root.CFrame:Lerp(targetCFrame, alpha)
+        task.wait()
+    end
+    
+    setOptionState("Fly", false)
+    setOptionState("Noclip", false)
+    return false, "disabled"
+end
+
 createSpecialButton("Auto Unlock World", "Farm", function()
     autoUnlockWorldGeneration = autoUnlockWorldGeneration + 1
     local generation = autoUnlockWorldGeneration
@@ -3029,7 +3138,7 @@ createSpecialButton("Auto Unlock World", "Farm", function()
     end
 
     task.spawn(function()
-        local arrived = flyPlayerToUnlockWorldCoordinate(data.CFrame, generation)
+        local arrived = flyPlayerToUnlockWorldWithStops(data.StopPoint, data.CFrame, generation)
 
         if arrived
             and autoUnlockWorldActive
