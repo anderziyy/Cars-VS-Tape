@@ -3010,54 +3010,39 @@ end
 
 createUnlockWorldSelectOption()
 
-createOption("Auto Unlock World", false, "Farm", function(state)
-    autoUnlockWorldActive = state
+createSpecialButton("Auto Unlock World", "Farm", function()
     autoUnlockWorldGeneration = autoUnlockWorldGeneration + 1
-
     local generation = autoUnlockWorldGeneration
 
-    if not state then
+    autoUnlockWorldActive = true
+
+    local selectedWorld = getUnlockWorldSelection()
+    if not selectedWorld then
+        autoUnlockWorldActive = false
+        return
+    end
+
+    local data = getUnlockWorldData(selectedWorld)
+    if not data then
+        autoUnlockWorldActive = false
         return
     end
 
     task.spawn(function()
-        while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
-            local selectedWorld = getUnlockWorldSelection()
-            if not selectedWorld then
-                task.wait(0.1)
-                continue
-            end
+        local arrived = flyPlayerToUnlockWorldCoordinate(data.CFrame, generation)
 
-            local data = getUnlockWorldData(selectedWorld)
-            if not data then
-                task.wait(0.1)
-                continue
-            end
-
-            local arrived = flyPlayerToUnlockWorldCoordinate(data.CFrame, generation)
-
-            if not arrived then
-                task.wait(0.1)
-                continue
-            end
-
-            if not autoUnlockWorldActive or generation ~= autoUnlockWorldGeneration then
-                break
-            end
-
-            local currentSelection = getUnlockWorldSelection()
-            if currentSelection ~= selectedWorld then
-                continue
-            end
-
+        if arrived
+            and autoUnlockWorldActive
+            and generation == autoUnlockWorldGeneration
+            and getUnlockWorldSelection() == selectedWorld then
             pcall(function()
                 local Event = game:GetService("ReplicatedStorage").Remotes.RequestWorldTeleport
                 Event:InvokeServer(data.World)
             end)
+        end
 
-            while autoUnlockWorldActive and generation == autoUnlockWorldGeneration and getUnlockWorldSelection() == selectedWorld do
-                task.wait(0.1)
-            end
+        if generation == autoUnlockWorldGeneration then
+            autoUnlockWorldActive = false
         end
     end)
 end)
