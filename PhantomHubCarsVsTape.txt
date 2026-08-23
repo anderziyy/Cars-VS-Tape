@@ -3448,37 +3448,19 @@ local function createTrophySingleSelectOption(stateName, labelText, options)
 end
 
 local function flyPlayerToTrophyPoint(targetCFrame, generation)
-    local targetPosition = targetCFrame.Position
-
-    while trophyFarmActive and generation == trophyFarmGeneration do
-        local world = getTrophyWorldSelection()
-        local partType = getTrophyPartSelection()
-        if not world or not partType then
-            return false
-        end
-
-        local character = Player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        if not character or not humanoid or humanoid.Health <= 0 or not root then
-            task.wait(0.1)
-            continue
-        end
-
-        local distance = (targetPosition - root.Position).Magnitude
-        if distance <= 2 then
-            root.CFrame = targetCFrame
-            return true
-        end
-
-        local speed = math.clamp(distance * 3.5, 180, 500)
-        local step = math.min(distance, speed * 0.016)
-        local alpha = math.clamp(step / math.max(distance, 0.001), 0, 1)
-        root.CFrame = root.CFrame:Lerp(targetCFrame, alpha)
-        task.wait()
+    if not trophyFarmActive or generation ~= trophyFarmGeneration then
+        return false
     end
 
-    return false
+    local character = Player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not character or not humanoid or humanoid.Health <= 0 or not root then
+        return false
+    end
+
+    root.CFrame = targetCFrame
+    return true
 end
 
 createTrophySingleSelectOption("TrophyFarmWorldSelector", "Select World", {"World 1", "World 2", "World 3", "World 4"})
