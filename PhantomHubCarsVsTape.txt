@@ -3168,6 +3168,401 @@ createOption("Auto Best Loots", false, "Farm", function(state)
 end)
 
 
+
+createCategory("Farm", "Unlock Worlds", "109807630067611")
+
+local autoUnlockWorldActive = false
+local autoUnlockWorldGeneration = 0
+
+local UNLOCK_WORLD_DATA = {
+    [1] = {
+        CFrame = CFrame.new(25.0000114, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+        World = 2
+    },
+    [2] = {
+        CFrame = CFrame.new(2025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+        World = 3
+    },
+    [3] = {
+        CFrame = CFrame.new(4025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+        World = 4
+    }
+}
+
+local function getUnlockWorldSelection()
+    local selected = optionStates["UnlockWorldSelector"]
+    if selected == nil then
+        return nil
+    end
+
+    local number = tonumber(string.match(tostring(selected), "%d+"))
+    if not number or number < 2 or number > 4 then
+        return nil
+    end
+
+    return number
+end
+
+local function getUnlockWorldData(worldNumber)
+    if worldNumber == 2 then
+        return UNLOCK_WORLD_DATA[1]
+    elseif worldNumber == 3 then
+        return UNLOCK_WORLD_DATA[2]
+    elseif worldNumber == 4 then
+        return UNLOCK_WORLD_DATA[3]
+    end
+
+    return nil
+end
+
+local function walkPlayerToUnlockWorldCoordinate(targetCFrame, generation)
+    local targetPosition = targetCFrame.Position
+    local lastMoveOrder = 0
+
+    while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
+        local selectedWorld = getUnlockWorldSelection()
+        if not selectedWorld then
+            return false, "selection_cleared"
+        end
+
+        local currentData = getUnlockWorldData(selectedWorld)
+        if not currentData or currentData.CFrame ~= targetCFrame then
+            return false, "selection_changed"
+        end
+
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+
+        if not character or not humanoid or humanoid.Health <= 0 or not root then
+            task.wait(0.1)
+            continue
+        end
+
+        if (root.Position - targetPosition).Magnitude <= 5 then
+            humanoid:MoveTo(root.Position)
+            return true, "arrived"
+        end
+
+        if tick() - lastMoveOrder >= 0.15 then
+            lastMoveOrder = tick()
+            humanoid:MoveTo(targetPosition)
+        end
+
+        task.wait(0.05)
+    end
+
+    return false, "disabled"
+end
+
+local function createUnlockWorldSelectOption()
+    optionCounter = optionCounter + 1
+
+    local stateName = "UnlockWorldSelector"
+    local options = {"World 2", "World 3", "World 4"}
+
+    local savedSelection = savedSettings[stateName]
+    if savedSelection ~= "World 2" and savedSelection ~= "World 3" and savedSelection ~= "World 4" then
+        savedSelection = nil
+        savedSettings[stateName] = nil
+        saveSettings()
+    end
+
+    optionStates[stateName] = savedSelection
+
+    local isOpen = false
+
+    local MainContainer = Instance.new("Frame")
+    MainContainer.Size = getOptionFrameSize()
+    MainContainer.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    MainContainer.Parent = MainContent
+    MainContainer.Name = tostring(optionCounter)
+    MainContainer.LayoutOrder = optionCounter
+    MainContainer.ZIndex = 999999
+    MainContainer.Visible = (activeTab == "Farm")
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, rpx(0))
+    UICorner.Parent = MainContainer
+
+    local ContainerStroke = Instance.new("UIStroke")
+    ContainerStroke.Color = Color3.fromRGB(60, 60, 60)
+    ContainerStroke.Thickness = 0
+    ContainerStroke.Parent = MainContainer
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.58, 0, 1, 0)
+    Label.Position = UDim2.new(0.05, 0, 0, 0)
+    Label.Text = "Select World"
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Font = Enum.Font.SourceSans
+    Label.TextSize = rpx(23)
+    Label.Parent = MainContainer
+    Label.ZIndex = 999999
+
+    local SelectButton = Instance.new("TextButton")
+    SelectButton.Size = UDim2.new(0.28, 0, 0.58, 0)
+    SelectButton.Position = UDim2.new(0.68, 0, 0.21, 0)
+    SelectButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    SelectButton.Text = savedSelection or "Select..."
+    SelectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SelectButton.TextSize = rpx(16)
+    SelectButton.Font = Enum.Font.SourceSansBold
+    SelectButton.Parent = MainContainer
+    SelectButton.AutoButtonColor = false
+    SelectButton.ZIndex = 999999
+
+    local SelectCorner = Instance.new("UICorner")
+    SelectCorner.CornerRadius = UDim.new(0, rpx(0))
+    SelectCorner.Parent = SelectButton
+
+    local SelectStroke = Instance.new("UIStroke")
+    SelectStroke.Color = Color3.fromRGB(70, 70, 70)
+    SelectStroke.Thickness = 1
+    SelectStroke.Parent = SelectButton
+
+    local SidePanel = Instance.new("Frame")
+    SidePanel.Name = stateName .. "Panel"
+    SidePanel.Size = UDim2.new(0.62, 0, 0.72, 0)
+    SidePanel.Position = UDim2.new(0.36, 0, 0.1, 0)
+    SidePanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    SidePanel.BorderSizePixel = 0
+    SidePanel.Parent = ContentContainer
+    SidePanel.ZIndex = 1000004
+    SidePanel.Visible = false
+    SidePanel.ClipsDescendants = true
+
+    local SidePanelCorner = Instance.new("UICorner")
+    SidePanelCorner.CornerRadius = UDim.new(0, rpx(0))
+    SidePanelCorner.Parent = SidePanel
+
+    local SidePanelStroke = Instance.new("UIStroke")
+    SidePanelStroke.Color = Color3.fromRGB(110, 110, 110)
+    SidePanelStroke.Thickness = 1
+    SidePanelStroke.Parent = SidePanel
+
+    local OptionScroll = Instance.new("ScrollingFrame")
+    OptionScroll.Name = "OptionsScroll"
+    OptionScroll.Size = UDim2.new(1, -rpx(8), 1, -rpx(8))
+    OptionScroll.Position = UDim2.new(0, rpx(4), 0, rpx(4))
+    OptionScroll.BackgroundTransparency = 1
+    OptionScroll.BorderSizePixel = 0
+    OptionScroll.Parent = SidePanel
+    OptionScroll.ZIndex = 1000005
+    OptionScroll.ScrollBarThickness = 2
+    OptionScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    OptionScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    OptionScroll.ClipsDescendants = true
+
+    local OptionListLayout = Instance.new("UIListLayout")
+    OptionListLayout.Padding = UDim.new(0, getDropdownPadding())
+    OptionListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    OptionListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    OptionListLayout.VerticalFlex = Enum.UIFlexAlignment.None
+    OptionListLayout.Parent = OptionScroll
+
+    local function setPanelVisible(visible)
+        isOpen = visible and activeTab == "Farm" and MainContainer.Visible
+        SidePanel.Visible = isOpen
+    end
+
+    local optionControls = {}
+
+    local function refreshSelection(animated)
+        local currentSelection = optionStates[stateName]
+        SelectButton.Text = currentSelection or "Select..."
+
+        for _, controls in ipairs(optionControls) do
+            local active = currentSelection == controls.value
+            controls.switchButton.BackgroundColor3 = active and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
+
+            local targetPosition = active
+                and UDim2.new(0.56, 0, 0.12, 0)
+                or UDim2.new(0.06, 0, 0.12, 0)
+
+            if animated then
+                controls.switchCircle:TweenPosition(targetPosition, "Out", "Quad", 0.2, true)
+            else
+                controls.switchCircle.Position = targetPosition
+            end
+        end
+    end
+
+    local function selectOption(optionName)
+        if not createDebounce(stateName .. "Option_" .. optionName, 0.05) then
+            return
+        end
+
+        autoUnlockWorldGeneration = autoUnlockWorldGeneration + 1
+
+        if optionStates[stateName] == optionName then
+            optionStates[stateName] = nil
+            savedSettings[stateName] = nil
+            saveSettings()
+            refreshSelection(true)
+        else
+            optionStates[stateName] = optionName
+            savedSettings[stateName] = optionName
+            saveSettings()
+            refreshSelection(true)
+        end
+    end
+
+    for index, optionName in ipairs(options) do
+        local OptionBox = Instance.new("Frame")
+        OptionBox.Size = UDim2.new(1, -rpx(2), 0, getOptionFrameHeight())
+        OptionBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        OptionBox.Parent = OptionScroll
+        OptionBox.ZIndex = 1000006
+        OptionBox.LayoutOrder = index
+
+        local OptionCorner = Instance.new("UICorner")
+        OptionCorner.CornerRadius = UDim.new(0, rpx(0))
+        OptionCorner.Parent = OptionBox
+
+        local OptionStroke = Instance.new("UIStroke")
+        OptionStroke.Color = Color3.fromRGB(110, 110, 110)
+        OptionStroke.Thickness = 1
+        OptionStroke.Parent = OptionBox
+
+        local OptionLabel = Instance.new("TextLabel")
+        OptionLabel.Size = UDim2.new(0.62, 0, 1, 0)
+        OptionLabel.Position = UDim2.new(0.05, 0, 0, 0)
+        OptionLabel.Text = optionName
+        OptionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        OptionLabel.BackgroundTransparency = 1
+        OptionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        OptionLabel.Font = Enum.Font.SourceSans
+        OptionLabel.TextSize = rpx(23)
+        OptionLabel.Parent = OptionBox
+        OptionLabel.ZIndex = 1000007
+
+        local OptionSwitch = Instance.new("TextButton")
+        OptionSwitch.Name = "OptionSwitch"
+        OptionSwitch.Size = UDim2.new(0.15, 0, 0.45, 0)
+        OptionSwitch.Position = UDim2.new(0.8, 0, 0.275, 0)
+        OptionSwitch.Text = ""
+        OptionSwitch.Parent = OptionBox
+        OptionSwitch.AutoButtonColor = false
+        OptionSwitch.ZIndex = 1000007
+
+        local OptionSwitchCorner = Instance.new("UICorner")
+        OptionSwitchCorner.CornerRadius = UDim.new(0, rpx(0))
+        OptionSwitchCorner.Parent = OptionSwitch
+
+        local OptionSwitchStroke = Instance.new("UIStroke")
+        OptionSwitchStroke.Color = Color3.fromRGB(60, 60, 60)
+        OptionSwitchStroke.Thickness = 1
+        OptionSwitchStroke.Parent = OptionSwitch
+
+        local OptionCircle = Instance.new("Frame")
+        OptionCircle.Name = "OptionCircle"
+        OptionCircle.Size = UDim2.new(0.38, 0, 0.76, 0)
+        OptionCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        OptionCircle.Parent = OptionSwitch
+        OptionCircle.ZIndex = 1000008
+
+        local OptionCircleCorner = Instance.new("UICorner")
+        OptionCircleCorner.CornerRadius = UDim.new(0, rpx(0))
+        OptionCircleCorner.Parent = OptionCircle
+
+        optionControls[index] = {
+            value = optionName,
+            switchButton = OptionSwitch,
+            switchCircle = OptionCircle
+        }
+
+        OptionSwitch.Activated:Connect(function()
+            selectOption(optionName)
+        end)
+    end
+
+    refreshSelection(false)
+
+    SelectButton.Activated:Connect(function()
+        if createDebounce(stateName .. "Dropdown", 0.05) then
+            setPanelVisible(not isOpen)
+        end
+    end)
+
+    MainContainer:GetPropertyChangedSignal("Visible"):Connect(function()
+        if not MainContainer.Visible then
+            setPanelVisible(false)
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(input)
+        if not isOpen then
+            return
+        end
+
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local position = input.Position
+            if not isPointInsideGui(SidePanel, position) and not isPointInsideGui(SelectButton, position) then
+                setPanelVisible(false)
+            end
+        end
+    end)
+
+    registerElement("Farm", MainContainer, "Select World")
+end
+
+createUnlockWorldSelectOption()
+
+createOption("Auto Unlock World", false, "Farm", function(state)
+    autoUnlockWorldActive = state
+    autoUnlockWorldGeneration = autoUnlockWorldGeneration + 1
+
+    local generation = autoUnlockWorldGeneration
+
+    if not state then
+        return
+    end
+
+    task.spawn(function()
+        while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
+            local selectedWorld = getUnlockWorldSelection()
+            if not selectedWorld then
+                task.wait(0.1)
+                continue
+            end
+
+            local data = getUnlockWorldData(selectedWorld)
+            if not data then
+                task.wait(0.1)
+                continue
+            end
+
+            local arrived = walkPlayerToUnlockWorldCoordinate(data.CFrame, generation)
+
+            if not arrived then
+                task.wait(0.1)
+                continue
+            end
+
+            if not autoUnlockWorldActive or generation ~= autoUnlockWorldGeneration then
+                break
+            end
+
+            local currentSelection = getUnlockWorldSelection()
+            if currentSelection ~= selectedWorld then
+                continue
+            end
+
+            pcall(function()
+                local Event = game:GetService("ReplicatedStorage").Remotes.RequestWorldTeleport
+                Event:InvokeServer(data.World)
+            end)
+
+            while autoUnlockWorldActive and generation == autoUnlockWorldGeneration and getUnlockWorldSelection() == selectedWorld do
+                task.wait(0.1)
+            end
+        end
+    end)
+end)
+
 createCategory("Farm", "GrassLine", "112929217877041")
 
 local autoFarmGrassLineActive = false
