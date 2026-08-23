@@ -2674,17 +2674,17 @@ local autoUnlockWorldGeneration = 0
 
 local UNLOCK_WORLD_DATA = {
     [1] = {
-        StopPoint = CFrame.new(-25.6354332, 4.99802494, -57.1411858, 0.999985158, -1.37171199e-07, -0.00545167318, 1.37248378e-07, 1, 1.37829126e-08, 0.00545167318, -1.45309409e-08, 0.999985158),
+        StopPoint = CFrame.new(-60.9540558, 4.99802351, -61.0719566, 0.99459219, -1.19695301e-07, -0.103857428, 1.08950012e-07, 1, -1.09134838e-07, 0.103857428, 9.7229389e-08, 0.99459219),
         CFrame = CFrame.new(25.0000114, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 2
     },
     [2] = {
-        StopPoint = CFrame.new(1961.30676, 3.99804115, -29.6291943, 1, 1.09778506e-11, 2.51739561e-06, -1.06324411e-11, 1, -1.37209e-07, -2.51739561e-06, 1.37209e-07, 1),
+        StopPoint = CFrame.new(1934.41211, 3.99804115, -29.6479759, 0.999995291, -3.00379749e-10, -0.00307239685, -1.28093355e-10, 1, -1.39458706e-07, 0.00307239685, 1.3945845e-07, 0.999995291),
         CFrame = CFrame.new(2025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 3
     },
     [3] = {
-        StopPoint = CFrame.new(3971.84863, 3.99802446, -37.3948174, -0.0027537006, 9.58544177e-08, 0.999996185, 4.76764797e-08, 1, -9.57234931e-08, -0.999996185, 4.74127049e-08, -0.0027537006),
+        StopPoint = CFrame.new(3926.22119, 3.99802589, -45.4176483, -0.0467724837, 1.298743e-09, 0.99890554, -8.53193924e-08, 1, -5.29513811e-09, -0.99890554, -8.54736797e-08, -0.0467724837),
         CFrame = CFrame.new(4025, 2.99998474, -3837.5, 1, 0, 0, 0, 1, 0, 0, 0, 1),
         World = 4
     }
@@ -3056,7 +3056,7 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
             break
         end
         
-        local speed = math.clamp(distance * 2.5, 120, 350)
+        local speed = math.clamp(distance * 3.5, 180, 500)
         local step = math.min(distance, speed * 0.016)
         local alpha = math.clamp(step / math.max(distance, 0.001), 0, 1)
         
@@ -3106,7 +3106,7 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
             return true, "arrived"
         end
         
-        local speed = math.clamp(distance * 2.5, 120, 350)
+        local speed = math.clamp(distance * 3.5, 180, 500)
         local step = math.min(distance, speed * 0.016)
         local alpha = math.clamp(step / math.max(distance, 0.001), 0, 1)
         
