@@ -2346,17 +2346,100 @@ tabs["Credits"] = createTab("Credits", "99243311837005", UDim2.new(0.08, rpx(0),
 createCategory("Main", "Progression", "99024336494762")
 
 
-local autoSellAllLootActive = false
+local autoPowerTrainingActive = false
 local autoRebirthProgressionActive = false
+local autoSellAllLootActive = false
 local autoPowerTrainingAreaActive = false
+
+local removerGrassLineAtivo = false
+local grassLineBackups = {}
+local grassLineDescendantConnection = nil
+
+local function getGrassLineBackupKey(model)
+    return model
+end
+
+local function backupAndRemoveGrassLine(model)
+    if not removerGrassLineAtivo then return end
+    if not model or not model.Parent or not model:IsA("Model") or model.Name ~= "GrassLine" then return end
+    if grassLineBackups[getGrassLineBackupKey(model)] then return end
+
+    local success, backup = pcall(function()
+        return {
+            model = model,
+            parent = model.Parent,
+            pivot = model:GetPivot(),
+            name = model.Name,
+        }
+    end)
+
+    if success and backup then
+        grassLineBackups[getGrassLineBackupKey(model)] = backup
+        pcall(function()
+            -- Removido do Workspace sem destruir a Instance: isso preserva
+            -- todos os filhos, atributos e propriedades para a restauração exata.
+            model.Parent = nil
+        end)
+    end
+end
+
+local function scanAndRemoveGrassLines()
+    if not removerGrassLineAtivo then return end
+
+    for _, descendant in ipairs(workspace:GetDescendants()) do
+        if descendant:IsA("Model") and descendant.Name == "GrassLine" then
+            backupAndRemoveGrassLine(descendant)
+        end
+    end
+end
+
+local function restoreGrassLines()
+    for originalModel, backup in pairs(grassLineBackups) do
+        if backup and backup.model then
+            pcall(function()
+                local model = backup.model
+                if backup.parent and backup.parent.Parent then
+                    model.Parent = backup.parent
+                    model.Name = backup.name or "GrassLine"
+                    model:PivotTo(backup.pivot)
+                end
+            end)
+        end
+        grassLineBackups[originalModel] = nil
+    end
+end
+
+local function setRemoveGrassLineEnabled(state)
+    removerGrassLineAtivo = state
+
+    if grassLineDescendantConnection then
+        pcall(function()
+            grassLineDescendantConnection:Disconnect()
+        end)
+        grassLineDescendantConnection = nil
+    end
+
+    if state then
+        scanAndRemoveGrassLines()
+        grassLineDescendantConnection = workspace.DescendantAdded:Connect(function(descendant)
+            if removerGrassLineAtivo and descendant:IsA("Model") and descendant.Name == "GrassLine" then
+                task.defer(function()
+                    backupAndRemoveGrassLine(descendant)
+                end)
+            end
+        end)
+    else
+        restoreGrassLines()
+    end
+end
 
 createOption("Auto Rebirth", false, "Main", function(state)
     autoRebirthProgressionActive = state
     if state then
         task.spawn(function()
-            local Event = game:GetService("ReplicatedStorage").Remotes.RequestRebirth
             while autoRebirthProgressionActive do
                 pcall(function()
+                    local Event = game:GetService("ReplicatedStorage").Remotes.RequestRebirth
                     Event:InvokeServer()
                 end)
                 task.wait(0.1)
@@ -4583,144 +4666,32 @@ createOption("Enable Shift Lock", false, "Config", function(state)
     getgenv().ShiftLockEnabled = state
 end)
 
-local hidePromoActive = false
-local hiddenPromoStates = {}
-local hiddenBlurStates = {}
-local hidePromoConnection = nil
-local hidePromoScanTaskRunning = false
-
-local function restorePromoObjects()
-    for object, originalState in pairs(hiddenPromoStates) do
-        if object and object.Parent then
-            pcall(function()
-                if object:IsA("GuiObject") then
-                    object.Visible = originalState
-                elseif object:IsA("LayerCollector") then
-                    object.Enabled = originalState
-                end
-            end)
-        end
-        hiddenPromoStates[object] = nil
-    end
-
-    for effect, originalState in pairs(hiddenBlurStates) do
-        if effect and effect.Parent then
-            pcall(function()
-                effect.Enabled = originalState
-            end)
-        end
-        hiddenBlurStates[effect] = nil
-    end
-end
-
-local function scanPromoObjects()
-    if not hidePromoActive then
-        return
-    end
-
-    local playerGui = Player:FindFirstChild("PlayerGui")
-    if playerGui then
-        for _, descendant in ipairs(playerGui:GetDescendants()) do
-            if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
-                if descendant:IsA("GuiObject") then
-                    if hiddenPromoStates[descendant] == nil then
-                        hiddenPromoStates[descendant] = descendant.Visible
+createOption("Hide Shop", false, "Config", function(state)
+    if state then
+        local function hideMonetization()
+            local playerGui = PlayerGui
+            if playerGui then
+                for _, descendant in pairs(playerGui:GetDescendants()) do
+                    if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
+                        descendant.Visible = false
                     end
-                    descendant.Visible = false
-                elseif descendant:IsA("LayerCollector") then
-                    if hiddenPromoStates[descendant] == nil then
-                        hiddenPromoStates[descendant] = descendant.Enabled
-                    end
-                    descendant.Enabled = false
                 end
             end
         end
-    end
-
-    local lighting = game:GetService("Lighting")
-    for _, container in ipairs({lighting, workspace.CurrentCamera}) do
-        if container then
-            for _, descendant in ipairs(container:GetDescendants()) do
-                if descendant:IsA("BlurEffect") then
-                    if hiddenBlurStates[descendant] == nil then
-                        hiddenBlurStates[descendant] = descendant.Enabled
-                    end
-                    descendant.Enabled = false
-                end
-            end
-        end
-    end
-end
-
-local function setHidePromoEnabled(state)
-    hidePromoActive = state
-
-    if hidePromoConnection then
-        pcall(function()
-            hidePromoConnection:Disconnect()
-        end)
-        hidePromoConnection = nil
-    end
-
-    if not state then
-        restorePromoObjects()
-        return
-    end
-
-    scanPromoObjects()
-
-    hidePromoConnection = PlayerGui.DescendantAdded:Connect(function(descendant)
-        if not hidePromoActive then
-            return
-        end
-
-        if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
-            task.defer(function()
-                if not hidePromoActive or not descendant.Parent then
-                    return
-                end
-
-                if descendant:IsA("GuiObject") then
-                    if hiddenPromoStates[descendant] == nil then
-                        hiddenPromoStates[descendant] = descendant.Visible
-                    end
-                    descendant.Visible = false
-                elseif descendant:IsA("LayerCollector") then
-                    if hiddenPromoStates[descendant] == nil then
-                        hiddenPromoStates[descendant] = descendant.Enabled
-                    end
-                    descendant.Enabled = false
-                end
-            end)
-        end
-    end)
-
-    if not hidePromoScanTaskRunning then
-        hidePromoScanTaskRunning = true
+        
         task.spawn(function()
-            while hidePromoActive do
-                scanPromoObjects()
+            while state do
+                hideMonetization()
                 task.wait(0.1)
             end
-            hidePromoScanTaskRunning = false
         end)
-    end
-end
-
-createOption("Hide Promo", false, "Config", function(state)
-    setHidePromoEnabled(state)
-end)
-                            end
-                        end
-                        task.wait(0.05)
-                    end
-                    
-                    for label, _ in pairs(trackedLabels) do
-                        if label and label.Parent then
-                            label.Visible = true
-                        end
-                    end
-                end)
+    else
+        local playerGui = PlayerGui
+        if playerGui then
+            for _, descendant in pairs(playerGui:GetDescendants()) do
+                if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
+                    descendant.Visible = true
+                end
             end
         end
     end
@@ -5125,6 +5096,7 @@ Player.CharacterAdded:Connect(function()
 end)
 
 local function stopAllScriptFeatures()
+    autoPowerTrainingActive = false
     autoRebirthProgressionActive = false
     autoSellAllLootActive = false
     autoSellSpecificActive = false
@@ -5135,16 +5107,6 @@ local function stopAllScriptFeatures()
     isFlyActive = false
     noclipEnabled = false
     getgenv().ShiftLockEnabled = false
-    hidePromoActive = false
-
-    if hidePromoConnection then
-        pcall(function()
-            hidePromoConnection:Disconnect()
-        end)
-        hidePromoConnection = nil
-    end
-
-    restorePromoObjects()
 
     for name, value in pairs(optionStates) do
         if type(value) == "boolean" then
