@@ -7,6 +7,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 
 local BASE_VIEWPORT_SIZE = Vector2.new(1600, 720)
 
@@ -4666,34 +4667,90 @@ createOption("Enable Shift Lock", false, "Config", function(state)
     getgenv().ShiftLockEnabled = state
 end)
 
-createOption("Hide Shop", false, "Config", function(state)
-    if state then
-        local function hideMonetization()
-            local playerGui = PlayerGui
-            if playerGui then
-                for _, descendant in pairs(playerGui:GetDescendants()) do
-                    if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
-                        descendant.Visible = false
-                    end
+local hideShopGeneration = 0
+local hideShopRunning = false
+local hiddenMonetizationObjects = {}
+local hiddenBlurObjects = {}
+
+local function hideShopObjects()
+    if not hideShopRunning then
+        return
+    end
+
+    local playerGui = PlayerGui
+    if playerGui then
+        for _, descendant in ipairs(playerGui:GetDescendants()) do
+            if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
+                if hiddenMonetizationObjects[descendant] == nil then
+                    hiddenMonetizationObjects[descendant] = descendant.Visible
                 end
+                descendant.Visible = false
             end
         end
-        
+    end
+
+    local function processBlurContainer(container)
+        if not container then
+            return
+        end
+
+        for _, descendant in ipairs(container:GetDescendants()) do
+            if descendant:IsA("BlurEffect") then
+                if hiddenBlurObjects[descendant] == nil then
+                    hiddenBlurObjects[descendant] = {
+                        Enabled = descendant.Enabled,
+                        Size = descendant.Size
+                    }
+                end
+                descendant.Enabled = false
+                descendant.Size = 0
+            end
+        end
+    end
+
+    processBlurContainer(Lighting)
+
+    local camera = workspace.CurrentCamera
+    processBlurContainer(camera)
+end
+
+local function restoreHideShopObjects()
+    for object, originalVisible in pairs(hiddenMonetizationObjects) do
+        if object and object.Parent then
+            pcall(function()
+                object.Visible = originalVisible
+            end)
+        end
+    end
+    table.clear(hiddenMonetizationObjects)
+
+    for effect, originalState in pairs(hiddenBlurObjects) do
+        if effect and effect.Parent then
+            pcall(function()
+                effect.Enabled = originalState.Enabled
+                effect.Size = originalState.Size
+            end)
+        end
+    end
+    table.clear(hiddenBlurObjects)
+end
+
+createOption("Hide Shop", false, "Config", function(state)
+    hideShopGeneration = hideShopGeneration + 1
+    local generation = hideShopGeneration
+
+    if state then
+        hideShopRunning = true
+
         task.spawn(function()
-            while state do
-                hideMonetization()
+            while hideShopRunning and generation == hideShopGeneration and optionStates["Hide Shop"] do
+                hideShopObjects()
                 task.wait(0.1)
             end
         end)
     else
-        local playerGui = PlayerGui
-        if playerGui then
-            for _, descendant in pairs(playerGui:GetDescendants()) do
-                if descendant.Name == "MonetizationBlackBackground" or descendant.Name == "ProductVignete" then
-                    descendant.Visible = true
-                end
-            end
-        end
+        hideShopRunning = false
+        restoreHideShopObjects()
     end
 end)
 
