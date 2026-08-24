@@ -2349,7 +2349,6 @@ createCategory("Main", "Progression", "99024336494762")
 
 local autoPowerTrainingActive = false
 local autoRebirthProgressionActive = false
-local autoPowerTrainingAreaActive = false
 
 local removerGrassLineAtivo = false
 local grassLineBackups = {}
@@ -2448,44 +2447,6 @@ createOption("Auto Rebirth", false, "Main", function(state)
     end
 end)
 
-                                            task.wait(2)
-                                        end
-                                        
-                                        local char = player.Character
-                                        if char and char:FindFirstChild("HumanoidRootPart") then
-                                            currentWorld = tonumber(player:GetAttribute("CurrentWorld")) or 1
-                                            local targetCFrame = getCFrameForWorld(currentWorld, rebirthValue)
-                                            
-                                            if targetCFrame then
-                                                char.HumanoidRootPart.CFrame = targetCFrame
-                                                
-                                                for _, part in pairs(char:GetDescendants()) do
-                                                    if part:IsA("BasePart") then
-                                                        if noclipParts[part] == nil then
-                                                            noclipParts[part] = part.CanCollide
-                                                        end
-                                                        part.CanCollide = false
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
-                task.wait(1)
-            end
-            
-            for part, canCollide in pairs(noclipParts) do
-                if part and part.Parent then
-                    part.CanCollide = canCollide
-                end
-            end
-        end)
-    end
-end)
 
 -- ✅ FUNÇÃO CORRIGIDA PARA DETECTAR O FORMATO: $[número][multiplicador]/s
 local function parseMoneyValue(valueStr)
@@ -4482,7 +4443,6 @@ end)
 local function stopAllScriptFeatures()
     autoPowerTrainingActive = false
     autoRebirthProgressionActive = false
-    autoPowerTrainingAreaActive = false
     autoBuyPowerActive = false
     autoPlayersActive = false
     autoPlayersSpecificActive = false
