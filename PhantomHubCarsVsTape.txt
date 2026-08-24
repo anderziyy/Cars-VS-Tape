@@ -2448,6 +2448,7 @@ createOption("Auto Rebirth", false, "Main", function(state)
 end)
 
 
+
 -- ✅ FUNÇÃO CORRIGIDA PARA DETECTAR O FORMATO: $[número][multiplicador]/s
 local function parseMoneyValue(valueStr)
     if not valueStr or valueStr == "" then return 0 end
