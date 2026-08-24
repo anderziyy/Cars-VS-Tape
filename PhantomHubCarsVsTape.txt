@@ -2515,6 +2515,9 @@ end
 
 local autoPlayersActive = false
 
+local automationFlyActive = false
+local automationNoclipActive = false
+
 createCategory("Farm", "Unlock Worlds", "109807630067611")
 
 local autoUnlockWorldActive = false
@@ -2866,8 +2869,8 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
     if type(flySpeedValue) == "function" then flySpeedValue = flySpeedValue() end
     if not flySpeedValue then flySpeedValue = 32 end
     
-    setOptionState("Fly", true)
-    setOptionState("Noclip", true)
+    automationFlyActive = true
+    automationNoclipActive = true
     
     local stopPosition = stopCFrame.Position
     local targetPosition = targetCFrame.Position
@@ -2875,15 +2878,15 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
     while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
         local selectedWorld = getUnlockWorldSelection()
         if not selectedWorld then
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
             return false, "selection_cleared"
         end
         
         local currentData = getUnlockWorldData(selectedWorld)
         if not currentData or (currentData.CFrame ~= targetCFrame and currentData.StopPoint ~= stopCFrame) then
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
             return false, "selection_changed"
         end
         
@@ -2913,8 +2916,8 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
     end
     
     if not (autoUnlockWorldActive and generation == autoUnlockWorldGeneration) then
-        setOptionState("Fly", false)
-        setOptionState("Noclip", false)
+        automationFlyActive = false
+        automationNoclipActive = false
         return false, "disabled"
     end
     
@@ -2923,15 +2926,15 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
     while autoUnlockWorldActive and generation == autoUnlockWorldGeneration do
         local selectedWorld = getUnlockWorldSelection()
         if not selectedWorld then
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
             return false, "selection_cleared"
         end
         
         local currentData = getUnlockWorldData(selectedWorld)
         if not currentData or currentData.CFrame ~= targetCFrame then
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
             return false, "selection_changed"
         end
         
@@ -2949,8 +2952,8 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
         
         if distance <= 2 then
             root.CFrame = targetCFrame
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
             return true, "arrived"
         end
         
@@ -2962,8 +2965,8 @@ local function flyPlayerToUnlockWorldWithStops(stopCFrame, targetCFrame, generat
         task.wait()
     end
     
-    setOptionState("Fly", false)
-    setOptionState("Noclip", false)
+    automationFlyActive = false
+    automationNoclipActive = false
     return false, "disabled"
 end
 
@@ -3342,8 +3345,8 @@ createOption("Auto Farm Trophy", false, "Farm", function(state)
     trophyFarmActive = state
 
     if not state then
-        setOptionState("Fly", false)
-        setOptionState("Noclip", false)
+        automationFlyActive = false
+        automationNoclipActive = false
         return
     end
 
@@ -3363,8 +3366,8 @@ createOption("Auto Farm Trophy", false, "Farm", function(state)
 
             lastWorld = world
             lastPart = partType
-            setOptionState("Fly", true)
-            setOptionState("Noclip", true)
+            automationFlyActive = true
+            automationNoclipActive = true
 
             local firstArrived = flyPlayerToTrophyPoint(data.FirstPoint, generation)
             if not firstArrived or not trophyFarmActive or generation ~= trophyFarmGeneration then
@@ -3387,8 +3390,8 @@ createOption("Auto Farm Trophy", false, "Farm", function(state)
 
         if generation == trophyFarmGeneration then
             trophyFarmActive = false
-            setOptionState("Fly", false)
-            setOptionState("Noclip", false)
+            automationFlyActive = false
+            automationNoclipActive = false
         end
     end)
 end)
@@ -3722,6 +3725,7 @@ task.spawn(function()
     while task.wait(0.1) do
         local flyEnabled = optionStates["Fly"]
         if type(flyEnabled) == "function" then flyEnabled = flyEnabled() end
+        flyEnabled = flyEnabled or automationFlyActive
         if flyEnabled then
             isFlyActive = true
             local char = LP.Character
@@ -3762,6 +3766,7 @@ task.spawn(function()
 
         local noclipVal = optionStates["Noclip"]
         if type(noclipVal) == "function" then noclipVal = noclipVal() end
+        noclipVal = noclipVal or automationNoclipActive
         if noclipVal then
             noclipEnabled = true
         else
